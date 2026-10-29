@@ -1,12 +1,9 @@
-backend
+# GitDSM
 
-gitdsm.py          service and CLI
-webs/index.html    page served by the service
+Synology DSM 上的 Git 仓库批量克隆应用
 
-Local run
-    python3 gitdsm.py serve
-    http://127.0.0.1:8011/
+## 功能
 
-On DSM the same files land in /var/packages/gitdsm/target.
-The app window starts them. Do not start them by hand.
-Assumes `git` is available in PATH (install via DSM Package Center if needed).
+- 一行一个仓库地址（支持完整 https://github.com/org/repo.git 或简写 org/repo）
+- 首行定义落盘路径（如 /volume1/gitrepos）
+- Web UI 上传/粘贴列表，实时进度卡片
