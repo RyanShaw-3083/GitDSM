@@ -2,6 +2,7 @@
 
 Synology DSM 上的 Git 仓库批量克隆应用
 
+![Preview](screenshot/pv.png)
 ## 功能
 
 - 一行一个仓库地址（支持完整 https://github.com/org/repo.git 或简写 org/repo）
