@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSM Git Cloner</title>
+<style>
+:root{
+  --bg:#f4f6f8; --panel:#fff; --panel-2:#f7f9fb; --line:#d7dee6;
+  --text:#1d2733; --muted:#667387; --input:#fff; --btn:#eef2f6; --btn-hover:#e3e9f0;
+  --primary:#2f6fed; --primary-hover:#245ed0;
+  --ok:#1f8a56; --run:#2f6fed; --err:#c44536;
+  --ok-bg:#e8f6ee; --run-bg:#eaf2ff; --err-bg:#fdecea;
+  --shadow:0 1px 2px rgba(16,24,40,.06);
+  --head:42px;
+}
+[data-theme="dark"]{
+  --bg:#0c1016; --panel:#171d27; --panel-2:#141a23; --line:#2c3848;
+  --text:#e8eef6; --muted:#8b98a8; --input:#10151c; --btn:#243044; --btn-hover:#2d3d56;
+  --primary:#3d8bfd; --primary-hover:#2f6fed;
+  --ok:#2f9e6b; --run:#3d8bfd; --err:#e05d4d;
+  --ok-bg:#143026; --run-bg:#14233b; --err-bg:#2c1412;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+.app{height:100%;display:flex;flex-direction:column}
+.bar{height:var(--head);flex:0 0 var(--head);display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar h1{margin:0;font-size:15px;font-weight:650}
+.spacer{flex:1}
+.main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;padding:12px}
+.left{min-height:0;display:flex;flex-direction:column;gap:12px}
+.left .panel{flex:0 0 auto}
+.jobs-wrap{flex:1;min-height:0;overflow:auto}
+.jobs-head{display:flex;align-items:center;gap:8px;margin:0 0 8px;color:var(--muted);font-size:12px}
+.empty{color:var(--muted);font-size:12px;text-align:center;padding:40px 0;border:1px dashed var(--line);border-radius:10px}
+.right{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:12px}
+*:not(textarea){scrollbar-width:none}
+*:not(textarea)::-webkit-scrollbar{display:none}
+textarea{scrollbar-width:thin;scrollbar-color:var(--line) transparent;overflow:auto}
+textarea::-webkit-scrollbar{width:8px;height:8px}
+textarea::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+textarea::-webkit-scrollbar-track{background:transparent}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:12px}
+select{font:inherit;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;cursor:pointer}
+label.conc{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.icon-btn{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:6px}
+.icon-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+[data-theme="light"] .i-sun,[data-theme="dark"] .i-moon{display:none}
+@media (max-width:820px){.main{grid-template-columns:1fr;overflow:auto}.left{min-height:auto}.jobs-wrap{overflow:visible}}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,textarea,button{font:inherit;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+button{cursor:pointer;background:var(--btn)}
+button:hover{background:var(--btn-hover)}
+button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+button.primary:hover{background:var(--primary-hover)}
+textarea{width:100%;height:120px;resize:vertical;display:block;margin-top:8px;font-family:ui-monospace,monospace;font-size:12px}
+#jobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.job{position:relative;border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0;background:var(--panel)}
+.job.done{background:var(--ok-bg);border-color:var(--ok)}
+.job.run{background:var(--run-bg);border-color:var(--run)}
+.job.error{background:var(--err-bg);border-color:var(--err)}
+.job.skipped{opacity:0.7}
+.job.stopped{border-style:dashed}
+.job b{display:block;word-break:break-all;font-size:12px}
+.job small{color:var(--muted);display:block;margin-top:4px;font-size:11px}
+.job .prog{font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);margin-top:4px;white-space:pre-wrap;max-height:60px;overflow:hidden}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:0 0 auto}
+.card h3{margin:0;padding:10px 12px;font-size:13px;font-weight:650;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between}
+.card.hot h3{border-top:3px solid #c4841d}
+.card.new h3{border-top:3px solid #2f6fed}
+.card.interest h3{border-top:3px solid #1f8a56}
+.card .body{padding:8px 12px;max-height:280px;overflow:auto}
+.entry{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer}
+.entry:last-child{border-bottom:0}
+.entry:hover{background:var(--panel-2)}
+.entry{flex-direction:column;align-items:flex-start;gap:2px}
+.entry b{word-break:break-all}
+.entry small{color:var(--muted);font-size:11px}
+.chev{font-size:10px;color:var(--muted)}
+button:disabled{opacity:.5;cursor:default}
+button.warn{border-color:var(--err);color:var(--err)}
+.job .err{margin-top:6px;font-size:12px;color:var(--err);word-break:break-all;white-space:pre-wrap}
+.job .acts{display:flex;gap:6px;align-items:center;margin-top:6px}
+.job .acts button{padding:2px 8px;font-size:12px}
+.job details{margin-top:6px}
+.job summary{cursor:pointer;color:var(--muted);font-size:11px}
+.job pre{margin:4px 0 0;max-height:160px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-all;color:var(--muted)}
+.job .tries{color:var(--muted);font-size:11px}
+</style>
+<body>
+<div class="app">
+  <header class="bar">
+    <h1>DSM Git Cloner</h1>
+    <span class="spacer"></span>
+    <button id="theme" class="icon-btn" title="切换主题" aria-label="切换主题">
+      <svg class="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </header>
+  <div class="main">
+    <div class="left">
+      <section class="panel">
+        <div class="row">
+          <input id="proxy" type="text" placeholder="代理前缀 (可选) 例如 https://gh-proxy.com" style="flex:1;min-width:200px">
+          <label class="conc" title="同时进行的克隆/更新任务数">并发
+            <select id="conc"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10">10</option></select>
+          </label>
+          <button class="primary" id="start">开始克隆</button>
+          <button id="stop" disabled title="停止所有排队中/进行中的任务（中断的 clone 会清掉半成品目录）">停止任务</button>
+          <button id="resume" disabled title="把已停止/重启中断的任务重新排队继续">状态恢复</button>
+          <button id="retry" class="warn" disabled title="把所有失败的任务重新排队（使用当前填写的代理）">重试失败任务</button>
+          <button id="clear" title="清掉已完成/失败/跳过的任务卡片">清除状态</button>
+        </div>
+        <textarea id="text" placeholder="/volume1/gitrepos
+https://github.com/microsoft/qlib.git
+https://github.com/mementum/backtrader.git
+# 一行一个仓库地址
+# 首行可为落盘路径"></textarea>
+      </section>
+      <div class="jobs-wrap">
+        <div class="jobs-head" id="jobs-head"></div>
+        <div id="jobs"></div>
+      </div>
+    </div>
+    <aside class="right">
+      <div class="card hot">
+        <h3 data-fold="hot">热门 <span class="chev">▾</span></h3>
+        <div class="body" id="hot"></div>
+      </div>
+      <div class="card new">
+        <h3 data-fold="latest">最新 <span class="chev">▾</span></h3>
+        <div class="body" id="latest"></div>
+      </div>
+      <div class="card interest">
+        <h3 data-fold="interest">我可能感兴趣 <span class="chev">▾</span></h3>
+        <div class="body" id="interest"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const text = $("#text");
+const jobsEl = $("#jobs");
+const proxy = $("#proxy");
+document.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+  });
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem("gitdsm-theme", t);
+}
+$("#theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  setTheme(cur === "dark" ? "light" : "dark");
+};
+setTheme(localStorage.getItem("gitdsm-theme") || "light");
+
+const conc = $("#conc");
+fetch("rpc/config").then(asJson).then(d => {
+  const v = String(d.max_parallel);
+  if (![...conc.options].some(o => o.value === v)) conc.add(new Option(v, v));
+  conc.value = v;
+}).catch(() => {});
+conc.onchange = async () => {
+  const d = await post("rpc/config", { max_parallel: +conc.value });
+  if (d.error) alert(d.error);
+};
+
+$("#start").onclick = async () => {
+  const body = JSON.stringify({ text: text.value, proxy: proxy.value.trim() });
+  const r = await fetch("rpc/clone", { method: "POST", headers: {"Content-Type": "application/json"}, body });
+  const d = await asJson(r);
+  if (d.error) alert(d.error);
+  else poll();
+};
+
+async function asJson(r) {
+  const t = await r.text();
+  try { return JSON.parse(t); } catch (e) { return { error: `后端返回 HTTP ${r.status}，不是 JSON（请求被 DSM 拦截或服务未启动）` }; }
+}
+async function post(url, data) {
+  const r = await fetch(url, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(data || {}) });
+  return asJson(r);
+}
+$("#clear").onclick = async () => { await post("rpc/clear"); poll(true); };
+$("#stop").onclick = async () => { await post("rpc/stop"); poll(true); };
+$("#resume").onclick = async () => { await post("rpc/resume"); poll(true); };
+$("#retry").onclick = async () => { await post("rpc/retry", { proxy: proxy.value.trim() }); poll(true); };
+jobsEl.addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  const act = b.dataset.act, urls = [b.dataset.url];
+  await post("rpc/" + act, act === "retry" ? { urls, proxy: proxy.value.trim() } : { urls });
+  poll(true);
+});
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const openLogs = new Set();
+jobsEl.addEventListener("toggle", e => {
+  const d = e.target; if (d.tagName !== "DETAILS") return;
+  d.open ? openLogs.add(d.dataset.url) : openLogs.delete(d.dataset.url);
+}, true);
+
+let pollTimer = null;
+async function poll(once) {
+  try {
+    const r = await fetch("rpc/jobs");
+    const jobs = await asJson(r);
+    const failed = jobs.filter(j => j.status === "error").length;
+    const rb = $("#retry");
+    rb.disabled = !failed;
+    rb.textContent = failed ? `重试失败任务（${failed}）` : "重试失败任务";
+    const active = jobs.filter(j => j.status === "running" || j.status === "queued").length;
+    const stopped = jobs.filter(j => j.status === "stopped").length;
+    $("#stop").disabled = !active;  $("#stop").textContent = active ? `停止任务（${active}）` : "停止任务";
+    $("#resume").disabled = !stopped; $("#resume").textContent = stopped ? `状态恢复（${stopped}）` : "状态恢复";
+    const cnt = s => jobs.filter(j => j.status === s).length;
+    $("#jobs-head").innerHTML = jobs.length
+      ? `共 ${jobs.length} 个任务 · 进行中 ${cnt("running")} · 排队 ${cnt("queued")} · 完成 ${cnt("done")} · 失败 ${failed}${stopped ? ` · 已停止 ${stopped}` : ""}${cnt("skipped") ? ` · 跳过 ${cnt("skipped")}` : ""}` : "";
+    if (!jobs.length) { jobsEl.innerHTML = `<div class="empty">还没有任务。在上方填入仓库地址，或从右侧列表点选后开始克隆。</div>`; }
+    else jobsEl.innerHTML = jobs.map(j => {
+      const cls = j.status === "done" ? "done" : j.status === "running" ? "run" : j.status === "error" ? "error" : j.status === "skipped" ? "skipped" : j.status === "stopped" ? "stopped" : "";
+      const name = (j.dest || j.url).split("/").pop().replace(/\.git$/, "");
+      const isErr = j.status === "error";
+      const body = isErr
+        ? `<div class="err">${esc(j.error || j.progress)}</div>
+           <div class="acts"><button data-act="retry" data-url="${esc(j.url)}">重试</button>${j.attempts > 1 ? `<span class="tries">已尝试 ${j.attempts} 次</span>` : ""}</div>`
+        : `<div class="prog">${esc(j.progress || j.status)}</div>` + (
+            j.status === "running" || j.status === "queued" ? `<div class="acts"><button data-act="stop" data-url="${esc(j.url)}">停止</button></div>`
+          : j.status === "stopped" ? `<div class="acts"><button data-act="resume" data-url="${esc(j.url)}">继续</button></div>` : "");
+      const logs = (j.log && j.log.length)
+        ? `<details data-url="${esc(j.url)}" ${openLogs.has(j.url) ? "open" : ""}><summary>git 输出（最后 ${j.log.length} 行）</summary><pre>${esc(j.log.join("\n"))}</pre></details>` : "";
+      return `<div class="job ${cls}"><b>${esc(name)}</b><small>${esc(j.url)}</small>${body}${isErr || openLogs.has(j.url) ? logs : ""}</div>`;
+    }).join("");
+  } catch (e) {}
+  if (!once) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, 1500); }
+}
+poll();
+
+async function loadTrends() {
+  try {
+    const r = await fetch("rpc/trends");
+    const d = await asJson(r);
+    renderList("hot", d.hot);
+    renderList("latest", d.latest);
+    renderList("interest", d.interest);
+  } catch (e) {}
+}
+function renderList(id, items) {
+  const el = document.getElementById(id);
+  el.innerHTML = items.map(it =>
+    `<div class="entry" data-url="${it.url}"><b>${it.name}</b><small>${it.desc}${it.stars ? ' ★'+it.stars : ''}</small></div>`
+  ).join("");
+  el.querySelectorAll(".entry").forEach(e => {
+    e.onclick = () => {
+      const url = e.dataset.url;
+      if (!text.value.includes(url)) {
+        text.value = (text.value.trim() ? text.value.trim() + "\n" : "") + url;
+      }
+    };
+  });
+}
+document.querySelectorAll("[data-fold]").forEach(h => {
+  h.onclick = () => {
+    const body = h.nextElementSibling;
+    body.style.display = body.style.display === "none" ? "" : "none";
+    h.querySelector(".chev").textContent = body.style.display === "none" ? "▸" : "▾";
+  };
+});
+loadTrends();
+</script>
+</body>
+</html>
